@@ -40,3 +40,30 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/assignments/{assignment}/my-submission',           [SubmissionController::class, 'mySubmission']);
     Route::put('/submissions/{submission}/grade',                   [SubmissionController::class, 'grade']);
 });
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/users', [\App\Http\Controllers\Api\UserController::class, 'index']);
+});
+
+use App\Http\Controllers\Api\QuizController;
+use App\Http\Controllers\Api\QuestionController;
+use App\Http\Controllers\Api\QuizAttemptController;
+
+Route::middleware('auth:sanctum')->group(function () {
+    // Quiz routes
+    Route::get('/courses/{course}/quizzes',       [QuizController::class, 'index']);
+    Route::post('/courses/{course}/quizzes',      [QuizController::class, 'store']);
+    Route::get('/quizzes/{quiz}',                 [QuizController::class, 'show']);
+    Route::put('/quizzes/{quiz}/publish',         [QuizController::class, 'publish']);
+    Route::delete('/quizzes/{quiz}',              [QuizController::class, 'destroy']);
+    Route::get('/quizzes/{quiz}/results',         [QuizController::class, 'results']);
+
+    // Question routes
+    Route::post('/quizzes/{quiz}/questions',      [QuestionController::class, 'store']);
+    Route::delete('/questions/{question}',        [QuestionController::class, 'destroy']);
+
+    // Attempt routes
+    Route::post('/quizzes/{quiz}/attempt',        [QuizAttemptController::class, 'start']);
+    Route::post('/attempts/{attempt}/submit',     [QuizAttemptController::class, 'submit']);
+    Route::get('/quizzes/{quiz}/my-attempt',      [QuizAttemptController::class, 'myAttempt']);
+});

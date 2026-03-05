@@ -16,7 +16,7 @@ return new class extends Migration
             $table->timestamp('enrolled_at')->useCurrent();
             $table->timestamps();
 
-            $table->unique(['user_id', 'course_id']); // prevent duplicate enrollments
+            $table->unique(['user_id', 'course_id']);
         });
     }
 
