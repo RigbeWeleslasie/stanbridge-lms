@@ -9,13 +9,15 @@ use Illuminate\Http\Request;
 
 class QuestionController extends Controller
 {
-    // POST /api/quizzes/{quiz}/questions
+    private function canManage($user, $quiz)
+    {
+        return $user->role === 'admin' || $quiz->course->lecturer_id === $user->id;
+    }
+
     public function store(Request $request, Quiz $quiz)
     {
-        $user = $request->user();
-
-        if ($user->role !== 'admin' && $quiz->course->lecturer_id !== $user->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if (!$this->canManage($request->user(), $quiz)) {
+            return response()->json(['message' => 'Unauthorized — you do not own this quiz'], 403);
         }
 
         $request->validate([
@@ -39,30 +41,21 @@ class QuestionController extends Controller
             'marks'          => $request->marks ?? 1,
         ]);
 
-        // update total marks on quiz
-        $quiz->update([
-            'total_marks' => $quiz->questions()->sum('marks'),
-        ]);
+        $quiz->update(['total_marks' => $quiz->questions()->sum('marks')]);
 
         return response()->json($question, 201);
     }
 
-    // DELETE /api/questions/{question}
     public function destroy(Request $request, Question $question)
     {
-        $user = $request->user();
         $quiz = $question->quiz;
 
-        if ($user->role !== 'admin' && $quiz->course->lecturer_id !== $user->id) {
+        if (!($request->user()->role === 'admin' || $quiz->course->lecturer_id === $request->user()->id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         $question->delete();
-
-        // update total marks
-        $quiz->update([
-            'total_marks' => $quiz->questions()->sum('marks'),
-        ]);
+        $quiz->update(['total_marks' => $quiz->questions()->sum('marks')]);
 
         return response()->json(['message' => 'Question deleted']);
     }

@@ -6,10 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Assignment;
 use App\Models\Submission;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class SubmissionController extends Controller
 {
-    // POST /api/assignments/{assignment}/submit - student submits
+    // POST /api/assignments/{assignment}/submit
     public function store(Request $request, Assignment $assignment)
     {
         $user = $request->user();
@@ -27,8 +28,16 @@ class SubmissionController extends Controller
         }
 
         $request->validate([
-            'content' => 'required_without:file|nullable|string',
+            'content' => 'nullable|string',
+            'file'    => 'nullable|file|mimes:pdf,doc,docx,zip,png,jpg,jpeg|max:10240',
         ]);
+
+        $filePath = null;
+        if ($request->hasFile('file')) {
+            $filePath = $request->file('file')->store(
+                'submissions/' . $user->id, 'public'
+            );
+        }
 
         $isLate = $assignment->due_date && now()->isAfter($assignment->due_date);
 
@@ -36,16 +45,21 @@ class SubmissionController extends Controller
             'assignment_id' => $assignment->id,
             'user_id'       => $user->id,
             'content'       => $request->content,
+            'file_path'     => $filePath,
             'status'        => $isLate ? 'late' : 'submitted',
         ]);
 
-        return response()->json($submission, 201);
+        return response()->json([
+            'message'    => 'Submitted successfully',
+            'submission' => $submission,
+            'file_url'   => $filePath ? Storage::url($filePath) : null,
+        ], 201);
     }
 
-    // GET /api/assignments/{assignment}/submissions - lecturer views all submissions
+    // GET /api/assignments/{assignment}/submissions
     public function index(Request $request, Assignment $assignment)
     {
-        $user = $request->user();
+        $user   = $request->user();
         $course = $assignment->course;
 
         if ($user->role !== 'admin' && $course->lecturer_id !== $user->id) {
@@ -54,12 +68,18 @@ class SubmissionController extends Controller
 
         $submissions = Submission::where('assignment_id', $assignment->id)
                                   ->with('student:id,name,email')
-                                  ->get();
+                                  ->get()
+                                  ->map(function ($sub) {
+                                      $sub->file_url = $sub->file_path
+                                          ? Storage::url($sub->file_path)
+                                          : null;
+                                      return $sub;
+                                  });
 
         return response()->json($submissions);
     }
 
-    // GET /api/assignments/{assignment}/my-submission - student views own submission
+    // GET /api/assignments/{assignment}/my-submission
     public function mySubmission(Request $request, Assignment $assignment)
     {
         $submission = Submission::where('assignment_id', $assignment->id)
@@ -70,13 +90,17 @@ class SubmissionController extends Controller
             return response()->json(['message' => 'No submission found'], 404);
         }
 
+        $submission->file_url = $submission->file_path
+            ? Storage::url($submission->file_path)
+            : null;
+
         return response()->json($submission);
     }
 
-    // PUT /api/submissions/{submission}/grade - lecturer grades submission
+    // PUT /api/submissions/{submission}/grade
     public function grade(Request $request, Submission $submission)
     {
-        $user = $request->user();
+        $user   = $request->user();
         $course = $submission->assignment->course;
 
         if ($user->role !== 'admin' && $course->lecturer_id !== $user->id) {

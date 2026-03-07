@@ -23,15 +23,25 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    protected function casts(): array
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password'          => 'hashed',
+    ];
+
+    public function coursesAsLecturer()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->hasMany(Course::class, 'lecturer_id');
     }
 
-    public function isAdmin(): bool { return $this->role === 'admin'; }
-    public function isLecturer(): bool { return $this->role === 'lecturer'; }
-    public function isStudent(): bool { return $this->role === 'student'; }
+    public function enrollments()
+    {
+        return $this->hasMany(Enrollment::class);
+    }
+
+    public function courses()
+    {
+        return $this->belongsToMany(Course::class, 'enrollments')
+                    ->withPivot('status', 'enrolled_at')
+                    ->withTimestamps();
+    }
 }

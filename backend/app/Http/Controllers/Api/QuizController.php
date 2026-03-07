@@ -9,10 +9,19 @@ use Illuminate\Http\Request;
 
 class QuizController extends Controller
 {
-    // GET /api/courses/{course}/quizzes
+    private function canManage($user, $quiz)
+    {
+        return $user->role === 'admin' || $quiz->course->lecturer_id === $user->id;
+    }
+
+    private function canManageCourse($user, $course)
+    {
+        return $user->role === 'admin' || $course->lecturer_id === $user->id;
+    }
+
     public function index(Request $request, Course $course)
     {
-        $user   = $request->user();
+        $user    = $request->user();
         $quizzes = Quiz::where('course_id', $course->id)
                        ->withCount('questions')
                        ->when($user->role === 'student', fn($q) => $q->where('is_published', true))
@@ -21,13 +30,12 @@ class QuizController extends Controller
         return response()->json($quizzes);
     }
 
-    // POST /api/courses/{course}/quizzes
     public function store(Request $request, Course $course)
     {
         $user = $request->user();
 
-        if ($user->role !== 'admin' && $course->lecturer_id !== $user->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if (!$this->canManageCourse($user, $course)) {
+            return response()->json(['message' => 'Unauthorized — you do not own this course'], 403);
         }
 
         $request->validate([
@@ -51,13 +59,11 @@ class QuizController extends Controller
         return response()->json($quiz, 201);
     }
 
-    // GET /api/quizzes/{quiz}
     public function show(Request $request, Quiz $quiz)
     {
         $user = $request->user();
 
         if ($user->role === 'student') {
-            // hide correct answers from students
             $questions = $quiz->questions->map->hideAnswer();
             return response()->json($quiz->load('course:id,title')->setAttribute('questions', $questions));
         }
@@ -65,13 +71,10 @@ class QuizController extends Controller
         return response()->json($quiz->load(['questions', 'course:id,title']));
     }
 
-    // PUT /api/quizzes/{quiz}/publish
     public function publish(Request $request, Quiz $quiz)
     {
-        $user = $request->user();
-
-        if ($user->role !== 'admin' && $quiz->course->lecturer_id !== $user->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if (!$this->canManage($request->user(), $quiz)) {
+            return response()->json(['message' => 'Unauthorized — you do not own this quiz'], 403);
         }
 
         $quiz->update(['is_published' => !$quiz->is_published]);
@@ -82,25 +85,19 @@ class QuizController extends Controller
         ]);
     }
 
-    // DELETE /api/quizzes/{quiz}
     public function destroy(Request $request, Quiz $quiz)
     {
-        $user = $request->user();
-
-        if ($user->role !== 'admin' && $quiz->course->lecturer_id !== $user->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        if (!$this->canManage($request->user(), $quiz)) {
+            return response()->json(['message' => 'Unauthorized — you do not own this quiz'], 403);
         }
 
         $quiz->delete();
         return response()->json(['message' => 'Quiz deleted']);
     }
 
-    // GET /api/quizzes/{quiz}/results
     public function results(Request $request, Quiz $quiz)
     {
-        $user = $request->user();
-
-        if ($user->role !== 'admin' && $quiz->course->lecturer_id !== $user->id) {
+        if (!$this->canManage($request->user(), $quiz)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
