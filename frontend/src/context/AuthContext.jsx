@@ -1,45 +1,44 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import api from '../api/axios';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
-export const AuthProvider = ({ children }) => {
+export function AuthProvider({ children }) {
   const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // on app load — check if cookie session exists
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      api.get('/auth/me')
-        .then(res => setUser(res.data))
-        .catch(() => localStorage.removeItem('token'))
-        .finally(() => setLoading(false));
-    } else {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const res = await api.get('/auth/me');
+      setUser(res.data);
+    } catch {
+      setUser(null);
+    } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
-    localStorage.setItem('token', res.data.token);
     setUser(res.data.user);
     return res.data.user;
   };
 
-  const register = async (name, email, password, role) => {
-    const res = await api.post('/auth/register', {
-      name, email, password,
-      password_confirmation: password,
-      role,
-    });
-    localStorage.setItem('token', res.data.token);
+  const register = async (name, email, password, role = 'student') => {
+    const res = await api.post('/auth/register', { name, email, password, role });
     setUser(res.data.user);
     return res.data.user;
   };
 
   const logout = async () => {
-    await api.post('/auth/logout');
-    localStorage.removeItem('token');
+    try {
+      await api.post('/auth/logout');
+    } catch { }
     setUser(null);
   };
 
@@ -48,6 +47,8 @@ export const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => useContext(AuthContext);
+export function useAuth() {
+  return useContext(AuthContext);
+}
