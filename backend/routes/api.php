@@ -12,6 +12,8 @@ use App\Http\Controllers\Api\QuizAttemptController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\SemesterController;
 use App\Http\Controllers\Api\AdminEnrollmentController;
+use App\Http\Controllers\Api\ModuleController;
+use App\Http\Controllers\Api\LessonController;
 
 // Public
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -34,10 +36,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/courses/{course}', [CourseController::class, 'destroy']);
 
     // Enrollment
-    Route::get('/my-courses',                    [EnrollmentController::class, 'myCourses']);
-    Route::get('/my-enrollments',                [EnrollmentController::class, 'myEnrollments']);
-    Route::post('/courses/{course}/request',     [EnrollmentController::class, 'requestEnrollment']);
-    Route::get('/courses/{course}/students',     [EnrollmentController::class, 'courseStudents']);
+    Route::get('/my-courses',                [EnrollmentController::class, 'myCourses']);
+    Route::get('/my-enrollments',            [EnrollmentController::class, 'myEnrollments']);
+    Route::post('/courses/{course}/request', [EnrollmentController::class, 'requestEnrollment']);
+    Route::get('/courses/{course}/students', [EnrollmentController::class, 'courseStudents']);
 
     // Assignments
     Route::get('/courses/{course}/assignments',                 [AssignmentController::class, 'index']);
@@ -74,6 +76,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/semesters',              [SemesterController::class, 'store']);
     Route::put('/semesters/{semester}',    [SemesterController::class, 'update']);
     Route::delete('/semesters/{semester}', [SemesterController::class, 'destroy']);
+
+    // Modules
+    Route::get('/courses/{course}/modules',  [ModuleController::class, 'index']);
+    Route::post('/courses/{course}/modules', [ModuleController::class, 'store']);
+    Route::put('/modules/{module}',          [ModuleController::class, 'update']);
+    Route::delete('/modules/{module}',       [ModuleController::class, 'destroy']);
+
+    // Lessons
+    Route::post('/modules/{module}/lessons',  [LessonController::class, 'store']);
+    Route::get('/lessons/{lesson}',           [LessonController::class, 'show']);
+    Route::put('/lessons/{lesson}',           [LessonController::class, 'update']);
+    Route::delete('/lessons/{lesson}',        [LessonController::class, 'destroy']);
+    Route::post('/lessons/{lesson}/complete', [LessonController::class, 'markComplete']);
+    Route::get('/courses/{course}/progress',  [LessonController::class, 'courseProgress']);
 
     // Admin
     Route::prefix('admin')->group(function () {
